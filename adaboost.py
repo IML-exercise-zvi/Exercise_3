@@ -54,7 +54,33 @@ class AdaBoost(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        n_samples = X.shape[0]
+        self.models_ = []
+        self.weights_ = []
+        self.D_ = [np.ones(n_samples) / n_samples]  # Store initial distribution
+
+        for t in range(self.iterations_):
+            model = self.wl_()
+            model.fit(X, y*self.D_[-1])
+            y_pred = model.predict(X)
+            err = np.sum(self.D_[-1] * (y_pred != y)) / np.sum(self.D_[-1])
+
+            if err == 0:
+                alpha = 1
+                self.iterations_ = t + 1  # Early stopping
+                break
+            elif err >= 0.5:
+                continue  # Skip this weak learner
+
+            alpha = 0.5 * np.log((1 - err) / err)
+            
+            self.models_.append(model)
+            self.weights_.append(alpha)
+            
+            # Update sample weights
+            D_next = self.D_[-1] * np.exp(-alpha * y * y_pred)
+            D_next /= np.sum(D_next)  # Normalize weights
+            self.D_.append(D_next)
 
     def _predict(self, X):
         """
@@ -70,7 +96,10 @@ class AdaBoost(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        y_pred = np.zeros(X.shape[0], dtype=np.float64)
+        for t in range(self.iterations_):
+            y_pred += self.weights_[t] * self.models_[t].predict(X)
+        return np.sign(y_pred)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -108,8 +137,12 @@ class AdaBoost(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
-
+        T = min(T, len(self.models_))  # Ensure T doesn't exceed the number of models
+        y_pred = np.zeros(X.shape[0], dtype=np.float64)
+        for t in range(T):
+            y_pred += self.weights_[t] * self.models_[t].predict(X)
+        return np.sign(y_pred)
+    
     def partial_loss(self, X: np.ndarray, y: np.ndarray, T: int) -> float:
         """
         Evaluate performance under misclassification loss function using fitted estimators up to T learners

@@ -46,11 +46,7 @@ class DecisionStump(BaseEstimator):
             if err < best_err:
                 self.j_, self.threshold_, self.sign_ = j, thr, 1
                 best_err = err
-
-            thr, err = self._find_threshold(x, y, -1)
-            if err < best_err:
-                self.j_, self.threshold_, self.sign_ = j, thr, -1
-                best_err = err
+        
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -71,6 +67,7 @@ class DecisionStump(BaseEstimator):
         Feature values strictly below threshold are predicted as `-sign` whereas values which equal
         to or above the threshold are predicted as `sign`
         """
+        #calculate and return -sign for values below threshold and sign for values above threshold
         return np.where(X[:, self.j_] < self.threshold_, -self.sign_, self.sign_)
 
     def _find_threshold(self, values: np.ndarray, labels: np.ndarray, sign: int) -> Tuple[float, float]:
@@ -103,17 +100,16 @@ class DecisionStump(BaseEstimator):
         For every tested threshold, values strictly below threshold are predicted as `-sign` whereas values
         which equal to or above the threshold are predicted as `sign`
         """
-        sorted_indices = np.argsort(values)
-        values, labels = values[sorted_indices], labels[sorted_indices]
-        thresholds = (values[1:] + values[:-1]) / 2
-        best_err, best_thr = np.inf, None
-        for thr in thresholds:
-            pred = np.where(values < thr, -sign, sign)
-            err = misclassification_error(labels, pred)
-            if err < best_err:
-                best_err = err
-                best_thr = thr
-        return best_thr, best_err
+        sorted_values = np.argsort(values)
+        values, labels = values[sorted_values], labels[sorted_values]
+
+        loss = np.sum(np.abs(labels)[np.sign(labels) == sign]) # Loss of classifying all as sign
+
+        loss = np.append(loss, loss - np.cumsum(labels * sign)) # Loss of classifying all as -sign
+
+        min_idx = np.argmin(loss)
+        return np.concatenate([[-np.inf], values[1:], [np.inf]])[min_idx], loss[min_idx]
+
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
