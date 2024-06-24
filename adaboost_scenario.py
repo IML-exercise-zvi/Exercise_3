@@ -43,25 +43,24 @@ def fit_and_evaluate_adaboost(noise, n_learners=250, train_size=5000, test_size=
     # Question 1: Train- and test errors of AdaBoost in noiseless case
     train_errors = []
     test_errors = []
+    my_ada = AdaBoost(DecisionStump, n_learners) #Create an AdaBoost instance with DecisionStump as the weak learner
+    my_ada._fit(train_X, train_y) #Fit the AdaBoost instance
     
     for t in range(1, n_learners + 1):
-        my_ada = AdaBoost(wl=lambda: DecisionStump(), iterations=n_learners)
-        my_ada.fit(train_X, train_y)
-        train_error = my_ada.partial_loss(train_X, train_y, t)
-        test_error = my_ada.partial_loss(test_X, test_y, t)
-        print(f'Iteration {t}/{n_learners}: Train Error: {train_error}, Test Error: {test_error}')
+        train_error = my_ada.partial_loss(train_X, train_y, t) #Calculate the training error
+        test_error = my_ada.partial_loss(test_X, test_y, t) #Calculate the test error
         train_errors.append(train_error)
         test_errors.append(test_error)
 
     # Plotting the errors
     plt.plot(range(1, n_learners + 1), train_errors, label='Training Error')
     plt.plot(range(1, n_learners + 1), test_errors, label='Test Error')
-    plt.xlabel('Number of Learners')
+    plt.xlabel('Number of Weak Learners')
     plt.ylabel('Error Rate (misclassification)')
-    plt.title('Training and Test Errors of AdaBoost with Decision Stump')
+    plt.title('Training and Test Errors of AdaBoost with Decision Stump Base Learners')
     plt.legend()
     plt.grid(True)
-    plt.imsave('train_test_errors.png')
+    plt.savefig('AdaBoost_errors.png')
 
     # Question 2: Plotting decision surfaces
     T = [5, 50, 100, 250]

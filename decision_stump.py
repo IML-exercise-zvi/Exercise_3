@@ -41,8 +41,8 @@ class DecisionStump(BaseEstimator):
             Responses of input data to fit to
         """
         best_err = np.inf
-        for j, x in product(range(X.shape[1]), X.T):
-            thr, err = self._find_threshold(x, y, 1)
+        for j, x in product(range(X.shape[1]), [-1, 1]):
+            thr, err = self._find_threshold(X[:, j], y, x)
             if err < best_err:
                 self.j_, self.threshold_, self.sign_ = j, thr, 1
                 best_err = err

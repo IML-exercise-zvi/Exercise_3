@@ -57,30 +57,23 @@ class AdaBoost(BaseEstimator):
         n_samples = X.shape[0]
         self.models_ = []
         self.weights_ = []
-        self.D_ = [np.ones(n_samples) / n_samples]  # Store initial distribution
+        self.D_ = np.ones(n_samples, dtype=np.float64) / n_samples
 
         for t in range(self.iterations_):
             model = self.wl_()
-            model.fit(X, y*self.D_[-1])
-            y_pred = model.predict(X)
-            err = np.sum(self.D_[-1] * (y_pred != y)) / np.sum(self.D_[-1])
+            model._fit(X, y*self.D_[-1])
+            y_pred = model._predict(X)
+            err = np.sum(self.D_[-1] * (y_pred != y)) # Compute the weighted error
 
-            if err == 0:
-                alpha = 1
-                self.iterations_ = t + 1  # Early stopping
-                break
-            elif err >= 0.5:
-                continue  # Skip this weak learner
-
-            alpha = 0.5 * np.log((1 - err) / err)
+            alpha = 0.5 * np.log((1 / err - 1)) # Compute the weight of the model
             
             self.models_.append(model)
             self.weights_.append(alpha)
             
             # Update sample weights
-            D_next = self.D_[-1] * np.exp(-alpha * y * y_pred)
-            D_next /= np.sum(D_next)  # Normalize weights
-            self.D_.append(D_next)
+            Next_D = self.D_[-1] * np.exp(-alpha * y * y_pred) # Compute the new weights according to the formula
+            self.D_ = np.vstack([self.D_, Next_D / np.sum(Next_D)]) # Append the new weights to D_ after normalization
+            
 
     def _predict(self, X):
         """
@@ -98,8 +91,8 @@ class AdaBoost(BaseEstimator):
         """
         y_pred = np.zeros(X.shape[0], dtype=np.float64)
         for t in range(self.iterations_):
-            y_pred += self.weights_[t] * self.models_[t].predict(X)
-        return np.sign(y_pred)
+            y_pred += self.weights_[t] * self.models_[t].predict(X) # Use the weights and the models to predict the response 
+        return np.sign(y_pred) # Return the sign of the prediction as the response
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -140,8 +133,8 @@ class AdaBoost(BaseEstimator):
         T = min(T, len(self.models_))  # Ensure T doesn't exceed the number of models
         y_pred = np.zeros(X.shape[0], dtype=np.float64)
         for t in range(T):
-            y_pred += self.weights_[t] * self.models_[t].predict(X)
-        return np.sign(y_pred)
+            y_pred += self.weights_[t] * self.models_[t]._predict(X) # Use the weights and the models to predict the response
+        return np.sign(y_pred) # Return the sign of the prediction as the response
     
     def partial_loss(self, X: np.ndarray, y: np.ndarray, T: int) -> float:
         """
